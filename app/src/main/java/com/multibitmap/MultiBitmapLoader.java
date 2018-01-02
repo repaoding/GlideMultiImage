@@ -65,7 +65,7 @@ public class MultiBitmapLoader implements ModelLoader<MultiBitmapUrl, InputStrea
         @NonNull
         @Override
         public ModelLoader<MultiBitmapUrl, InputStream> build(MultiModelLoaderFactory multiFactory) {
-            return new MultiBitmapLoader(null, context);
+            return new MultiBitmapLoader(modelCache, context);
         }
 
         @Override
