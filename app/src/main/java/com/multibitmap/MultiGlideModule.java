@@ -10,14 +10,12 @@ import com.bumptech.glide.module.AppGlideModule;
 
 import java.io.InputStream;
 
-/**
- * Configures Glide for the Giphy sample app.
- */
 @GlideModule
 public class MultiGlideModule extends AppGlideModule {
     @Override
     public void registerComponents(@NonNull Context context, @NonNull Glide glide,
                                    @NonNull Registry registry) {
+//        registry.append(GlideUrl.class, InputStream.class, new OkHttpUrlLoader.Factory());
         registry.append(MultiBitmapUrl.class, InputStream.class, new MultiBitmapLoader.Factory(context));
     }
 

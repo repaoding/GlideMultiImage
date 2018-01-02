@@ -1,12 +1,11 @@
 package com.multibitmap;
 
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.widget.ImageView;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.RequestManager;
 
 import java.util.Arrays;
 
@@ -19,7 +18,7 @@ public class MainActivity extends AppCompatActivity {
             , "http://pic.58pic.com/58pic/15/14/14/18e58PICMwt_1024.jpg"
             , "http://dynamic-image.yesky.com/740x-/uploadImages/2014/289/01/IGS09651F94M.jpg"
             , "http://pic.58pic.com/58pic/13/61/00/61a58PICtPr_1024.jpg"
-            , "http://www.bz55.com/uploads/allimg/150701/140-150F1142638.jpg"
+            , "http://pic.58pic.com/58pic/13/61/00/61a58PICtPr_1024.jpg"
             , "http://pic.58pic.com/58pic/15/36/00/73b58PICgvY_1024.jpg"
             , "http://pic.58pic.com/58pic/15/35/96/97j58PICUhD_1024.jpg"
             , "http://pic.yesky.com/uploadImages/2015/131/58/62KPG7ZYL453.jpg"
@@ -31,12 +30,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         initView();
-        try {
-//            load();
-            handler.sendEmptyMessage(what);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+
     }
 
     private void initView() {
@@ -54,40 +48,28 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    private int what = 0;
-    Handler handler = new Handler(new Handler.Callback() {
-        @Override
-        public boolean handleMessage(Message msg) {
-            MultiBitmapUrl url = new MultiBitmapUrl(getResources().getDrawable(R.mipmap.ic_launcher), Arrays.copyOf(urls, i + 1));
+    @Override
+    protected void onResume() {
+        super.onResume();
+        try {
+            load();
+//            handler.sendEmptyMessage(what);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void load() {
+        int i = urls.length;
+        RequestManager manager = Glide.with(this);
+        for (ImageView imageView : views) {
+            MultiBitmapUrl url = new MultiBitmapUrl(getResources().getDrawable(R.mipmap.ic_launcher), Arrays.copyOf(urls, i));
             try {
-                Glide.with(MainActivity.this).load(url).into(views[i]);
+                manager.load(url).into(imageView);
             } catch (Exception e) {
                 e.printStackTrace();
             }
-            i++;
-            handler.sendEmptyMessageDelayed(what, 1000);
-            return what == msg.what;
-        }
-    });
-    int i = 0;
-
-    private void load() {
-
-//        int i = 1;
-//        for (ImageView imageView : views) {
-//            MultiBitmapUrl url = new MultiBitmapUrl(getResources().getDrawable(R.mipmap.ic_launcher), Arrays.copyOf(urls, i));
-//            try {
-//                Glide.with(this).load(url).into(imageView);
-//            } catch (Exception e) {
-//                e.printStackTrace();
-//            }
-//            i++;
-//        }
-        MultiBitmapUrl url = new MultiBitmapUrl(getResources().getDrawable(R.mipmap.ic_launcher), Arrays.copyOf(urls, 1));
-        try {
-            Glide.with(this).load(url).into(views[0]);
-        } catch (Exception e) {
-            e.printStackTrace();
+            i--;
         }
     }
 }

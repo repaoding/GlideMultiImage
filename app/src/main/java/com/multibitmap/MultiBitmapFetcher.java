@@ -2,6 +2,7 @@ package com.multibitmap;
 
 import android.support.annotation.NonNull;
 
+import com.bumptech.glide.Glide;
 import com.bumptech.glide.Priority;
 import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.DataSource;
@@ -26,7 +27,7 @@ public class MultiBitmapFetcher implements DataFetcher<InputStream> {
     @Override
     public void loadData(Priority priority, DataCallback<? super InputStream> callback) {
         try {
-            callback.onDataReady(faceUrlSet.getFaceInputStream(requestManager));
+            faceUrlSet.loadFaceInputStream(requestManager, callback);
         } catch (Exception e) {
             callback.onLoadFailed(e);
         }

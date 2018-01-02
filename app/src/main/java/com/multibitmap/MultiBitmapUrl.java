@@ -3,63 +3,130 @@ package com.multibitmap;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
-import android.text.TextUtils;
+import android.os.AsyncTask;
+import android.os.Handler;
+import android.os.Looper;
+import android.support.annotation.Nullable;
 
 import com.bumptech.glide.RequestManager;
+import com.bumptech.glide.load.DataSource;
+import com.bumptech.glide.load.data.DataFetcher;
+import com.bumptech.glide.load.engine.GlideException;
+import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.RequestOptions;
+import com.bumptech.glide.request.target.Target;
+import com.bumptech.glide.util.Util;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 /**
  * created by sfx on 2017/12/28.
  */
 
 public class MultiBitmapUrl extends MultiUrl {
-
+    private final static int LOAD_TIMEOUT = 30;
     private final static int parentWidth = 192;//父组件宽
     private final static int parentHeight = 192;//父组件高
     private final static int mGap = 8; //宫格间距
-    private volatile static RequestOptions options;
+    private RequestManager manager;
 
     private final Drawable errorDrawable;
+    private DataFetcher.DataCallback<? super InputStream> dataCallback;
 
     public MultiBitmapUrl(Drawable errorDrawable, String... urls) {
         super(urls);
+
         this.errorDrawable = errorDrawable;
     }
 
-    public InputStream getFaceInputStream(RequestManager requestManager) throws ExecutionException, InterruptedException, IOException {
-        if (requestManager == null) return null;
-        final Bitmap bitmap = multiBitmap(requestManager);
-        final InputStream inputStream = convertBitmapToInputStream(bitmap);
-        bitmap.recycle();
-        return inputStream;
+    public void loadFaceInputStream(RequestManager requestManager, DataFetcher.DataCallback<? super InputStream> callback) throws ExecutionException, InterruptedException, IOException {
+        dataCallback = callback;
+        this.manager = requestManager;
+        if (Util.isOnBackgroundThread()) {
+            new Handler(Looper.getMainLooper())
+                    .post(new Runnable() {
+                        @Override
+                        public void run() {
+                            startLoad(MultiBitmapUrl.this.manager);
+                        }
+                    });
+        } else {
+            startLoad(MultiBitmapUrl.this.manager);
+        }
+
+
     }
 
 
-    private static Bitmap loadBitmap(RequestManager requestManager, String url) {
+    private static Drawable getBitmap(RequestManager requestManager, String url) {
         try {
-            if (TextUtils.isEmpty(url)) return null;
-            if (options == null) {
-                options = new RequestOptions().skipMemoryCache(true);
-            }
             return requestManager
-                    .asBitmap()
+//                    .asBitmap()
                     .load(url)
-                    .apply(options)
-                    .submit(parentWidth, parentHeight).get();
+                    .apply(RequestOptions.centerCropTransform().skipMemoryCache(true).override(parentWidth, parentHeight))
+                    .submit().get(LOAD_TIMEOUT, TimeUnit.SECONDS);
         } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+
+    private void startCompleteLoadTask() {
+        new CompleteLoadTask().execute(this);
+    }
+
+    void completeLoad() {
+        try {
+            final Bitmap bitmap = multiBitmap(manager);
+            final InputStream inputStream = convertBitmapToInputStream(bitmap);
+            bitmap.recycle();
+            if (dataCallback != null) {
+                dataCallback.onDataReady(inputStream);
+            }
+        } catch (Exception e) {
+            dataCallback.onLoadFailed(e);
+        }
+    }
+
+    private volatile int completeLoaded = 0;
+    private RequestListener<Drawable> loadComplete = new RequestListener<Drawable>() {
+        @Override
+        public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
+            completeLoaded++;
+            if (completeLoaded == size()) {
+                startCompleteLoadTask();
+            }
+            return false;
+        }
+
+        @Override
+        public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
+            completeLoaded++;
+            if (completeLoaded == size()) {
+                startCompleteLoadTask();
+            }
+            return false;
+        }
+    };
+
+    private void startLoad(final RequestManager requestManager) {
+        final int length = size();
+        final int childrenCount = length <= 9 ? length : 9;
+        for (int i = 0; i <= childrenCount - 1; i++) {
+            requestManager.load(getSafeStringUrl(i))
+                    .apply(RequestOptions.centerCropTransform().skipMemoryCache(true).override(parentWidth, parentHeight))
+                    .listener(loadComplete)
+                    .preload();
 
         }
-        return null;
     }
-
 
     private Bitmap multiBitmap(RequestManager requestManager) throws ExecutionException, InterruptedException {
         final int length = size();
@@ -83,8 +150,7 @@ public class MultiBitmapUrl extends MultiUrl {
             int top = mImageSize * rowNum + mGap * (rowNum + 1);
             int right = left + mImageSize;
             int bottom = top + mImageSize;
-            final Bitmap bitmap = loadBitmap(requestManager, getSafeStringUrl(i));
-
+            final Drawable bitmap = getBitmap(requestManager, getSafeStringUrl(i));
             /*
              * 不同子view情况下的不同显示
              */
@@ -139,11 +205,10 @@ public class MultiBitmapUrl extends MultiUrl {
         return multiBitmap;
     }
 
-    private void drawBitmapAt(Canvas canvas, Bitmap bitmap, int left, int top, int right, int bottom) {
-
+    private void drawBitmapAt(Canvas canvas, Drawable bitmap, int left, int top, int right, int bottom) {
         if (bitmap != null) {
-            canvas.drawBitmap(bitmap, null, new Rect(left, top, right, bottom), null);
-//            bitmap.recycle();
+            bitmap.setBounds(left, top, right, bottom);
+            bitmap.draw(canvas);
         } else if (errorDrawable != null) {
             errorDrawable.setBounds(left, top, right, bottom);
             errorDrawable.draw(canvas);
@@ -165,4 +230,18 @@ public class MultiBitmapUrl extends MultiUrl {
         bitmap.compress(Bitmap.CompressFormat.PNG, 90, outputStream);
         return new ByteArrayInputStream(outputStream.toByteArray());
     }
+
+    private static final class CompleteLoadTask extends AsyncTask<MultiBitmapUrl, Void, Void> {
+
+        @Override
+        protected Void doInBackground(MultiBitmapUrl... multiBitmapUrls) {
+            if (multiBitmapUrls != null && multiBitmapUrls.length >= 1) {
+                for (MultiBitmapUrl item : multiBitmapUrls) {
+                    item.completeLoad();
+                }
+            }
+            return null;
+        }
+    }
+
 }
