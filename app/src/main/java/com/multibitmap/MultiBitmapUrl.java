@@ -8,6 +8,7 @@ import android.os.AsyncTask;
 import android.os.Handler;
 import android.os.Looper;
 import android.support.annotation.Nullable;
+import android.text.TextUtils;
 
 import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.DataSource;
@@ -65,9 +66,9 @@ public class MultiBitmapUrl extends MultiUrl {
 
 
     private static Drawable getBitmap(RequestManager requestManager, String url) {
+        if (TextUtils.isEmpty(url)) return null;
         try {
             return requestManager
-//                    .asBitmap()
                     .load(url)
                     .apply(RequestOptions.centerCropTransform().skipMemoryCache(true).override(parentWidth, parentHeight))
                     .submit().get(LOAD_TIMEOUT, TimeUnit.SECONDS);
@@ -100,30 +101,38 @@ public class MultiBitmapUrl extends MultiUrl {
         @Override
         public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
             completeLoaded++;
-            if (completeLoaded == size()) {
-                startCompleteLoadTask();
-            }
+            checkAndStartCompleteLoad();
             return false;
         }
 
         @Override
         public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
             completeLoaded++;
-            if (completeLoaded == size()) {
-                startCompleteLoadTask();
-            }
+            checkAndStartCompleteLoad();
             return false;
         }
     };
+
+    private void checkAndStartCompleteLoad() {
+        if (completeLoaded == size()) {
+            startCompleteLoadTask();
+        }
+    }
 
     private void startLoad(final RequestManager requestManager) {
         final int length = size();
         final int childrenCount = length <= 9 ? length : 9;
         for (int i = 0; i <= childrenCount - 1; i++) {
-            requestManager.load(getSafeStringUrl(i))
-                    .apply(RequestOptions.centerCropTransform().skipMemoryCache(true).override(parentWidth, parentHeight))
-                    .listener(loadComplete)
-                    .preload();
+            final String url = getSafeStringUrl(i);
+            if (TextUtils.isEmpty(url)) {
+                completeLoaded++;
+                checkAndStartCompleteLoad();
+            } else {
+                requestManager.load(url)
+                        .apply(RequestOptions.centerCropTransform().skipMemoryCache(true).override(parentWidth, parentHeight))
+                        .listener(loadComplete)
+                        .preload();
+            }
 
         }
     }

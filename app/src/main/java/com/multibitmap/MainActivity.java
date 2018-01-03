@@ -60,7 +60,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void load() {
-        int i = urls.length;
+        int i = 1;
         RequestManager manager = Glide.with(this);
         for (ImageView imageView : views) {
             MultiBitmapUrl url = new MultiBitmapUrl(getResources().getDrawable(R.mipmap.ic_launcher), Arrays.copyOf(urls, i));
@@ -69,7 +69,7 @@ public class MainActivity extends AppCompatActivity {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-            i--;
+            i++;
         }
     }
 }

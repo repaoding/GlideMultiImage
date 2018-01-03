@@ -14,7 +14,7 @@ import java.security.MessageDigest;
  * created by sfx on 2017/12/27.
  */
 
-public class MultiUrl implements Key {
+class MultiUrl implements Key {
     private static final String ALLOWED_URI_CHARS = "@#&=*+-_.,:!?()/~'%";
     private String[] urls;
     @Nullable
@@ -23,16 +23,16 @@ public class MultiUrl implements Key {
     @Nullable
     private String[] safeUrls;
 
-    public MultiUrl(String... urls) {
+    MultiUrl(String... urls) {
         this.urls = urls;
 
     }
 
-    public int size() {
+    int size() {
         return urls == null ? 0 : urls.length;
     }
 
-    public String getSafeStringUrl(int i) {
+    String getSafeStringUrl(int i) {
         if (i >= size()) return null;
         if (i < 0) return null;
         if (safeUrls == null) {
@@ -50,8 +50,8 @@ public class MultiUrl implements Key {
         return safeUrls[i];
     }
 
-    public String getCacheKey() {
-        if (urls == null) return null;
+    private String getCacheKey() {
+        if (urls == null) return "";
         int size = urls.length;
         StringBuilder builder = new StringBuilder();
         String temp;
